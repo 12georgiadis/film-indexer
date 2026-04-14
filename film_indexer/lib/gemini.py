@@ -195,15 +195,13 @@ class GeminiClient:
     ) -> tuple[T, dict]:
         """Async version using client.aio for true concurrent Gemini calls.
 
-        Use with asyncio.gather() to parallelize Pass B voices or batch clips.
+        Manual retry loop (AsyncRetrying has known issues with return values
+        inside the with-attempt block).
         """
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(max_retries),
-            wait=wait_exponential(multiplier=2, min=2, max=30),
-            retry=retry_if_exception_type((RuntimeError, ValidationError)),
-            reraise=True,
-        ):
-            with attempt:
+        last_exc: Optional[Exception] = None
+
+        for attempt_num in range(max_retries):
+            try:
                 start = time.time()
 
                 config: dict = {
@@ -224,14 +222,11 @@ class GeminiClient:
                         thinking_budget=0 if thinking_level == "minimal" else -1
                     )
 
-                try:
-                    response = await self.client.aio.models.generate_content(
-                        model=model,
-                        contents=contents,
-                        config=config,
-                    )
-                except Exception as e:
-                    raise RuntimeError(f"Gemini async API failed on {model}: {e}") from e
+                response = await self.client.aio.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                )
 
                 latency = time.time() - start
                 usage = getattr(response, "usage_metadata", None)
@@ -245,15 +240,8 @@ class GeminiClient:
                 if not text:
                     raise RuntimeError(f"Empty response from {model}")
 
-                try:
-                    data = json.loads(text)
-                except json.JSONDecodeError as e:
-                    raise RuntimeError(f"Invalid JSON from {model}: {e}\nText: {text[:500]}") from e
-
-                try:
-                    obj = schema.model_validate(data)
-                except ValidationError as e:
-                    raise RuntimeError(f"Schema validation failed for {schema.__name__}: {e}") from e
+                data = json.loads(text)
+                obj = schema.model_validate(data)
 
                 return obj, {
                     "model": model,
@@ -262,6 +250,18 @@ class GeminiClient:
                     "cost_usd": round(cost, 6),
                     "latency_s": round(latency, 2),
                 }
+
+            except (json.JSONDecodeError, ValidationError, RuntimeError) as e:
+                last_exc = e
+                if attempt_num < max_retries - 1:
+                    sleep_s = min(2 ** attempt_num * 2, 30)
+                    print(f"[gemini async] retry {attempt_num + 1}/{max_retries} after {sleep_s}s: {e}", flush=True)
+                    await asyncio.sleep(sleep_s)
+            except Exception as e:
+                # Unexpected error, no retry
+                raise RuntimeError(f"Gemini async API failed on {model}: {e}") from e
+
+        raise RuntimeError(f"Gemini async failed after {max_retries} attempts: {last_exc}")
 
     async def upload_video_async(self, video_path: Path, mime_type: str = "video/mp4") -> types.File:
         """Async upload (uses thread pool internally since SDK upload is sync)."""
