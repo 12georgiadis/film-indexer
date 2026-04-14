@@ -38,6 +38,7 @@ async def process_clip(
     clip_path: Path,
     out_dir: Path,
     state: State,
+    state_db_path: Path,
     semaphore: asyncio.Semaphore,
     executor: ThreadPoolExecutor,
 ) -> dict:
@@ -46,7 +47,11 @@ async def process_clip(
         loop = asyncio.get_event_loop()
         try:
             print(f"[batch] start {clip_hash[:12]} {clip_path.name}")
-            analysis = await loop.run_in_executor(executor, run_pipeline, clip_path, out_dir)
+            # Pass state_db_path so run_pipeline logs costs
+            analysis = await loop.run_in_executor(
+                executor,
+                lambda: run_pipeline(clip_path, out_dir, state_db_path),
+            )
             state.update_clip_status(clip_hash, "done")
             return {
                 "hash": clip_hash,
@@ -111,6 +116,7 @@ async def run_batch(
                 clip_path,
                 out_dir,
                 state,
+                db_path,
                 semaphore,
                 executor,
             )

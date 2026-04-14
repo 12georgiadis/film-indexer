@@ -73,17 +73,50 @@ def seconds_to_rational(seconds: float, fps: float = 25.0) -> str:
 
 
 def parse_timecode_to_seconds(tc: str) -> float:
-    """Parse 'MM:SS.cc' or 'HH:MM:SS.cc' to seconds."""
-    if not tc or tc == "00:00:00":
+    """Parse various timecode formats to seconds, tolerant.
+
+    Accepts:
+    - "MM:SS.cc" or "HH:MM:SS.cc" (standard)
+    - "0m21s200ms" or "21s500ms" (Gemini-invented natural format)
+    - "21.5" (raw seconds)
+    - "00:00:00", "0", "" → 0.0
+    """
+    if not tc or tc in ("0", "00:00:00", "00:00", "0:00"):
         return 0.0
-    parts = tc.replace(",", ".").split(":")
-    if len(parts) == 3:
-        h, m, s = parts
-        return int(h) * 3600 + int(m) * 60 + float(s)
-    elif len(parts) == 2:
-        m, s = parts
-        return int(m) * 60 + float(s)
-    return float(parts[0])
+
+    tc = tc.strip()
+
+    # Format Gemini natural : "0m21s200ms", "1h2m3s", "21s500ms", "500ms"
+    if any(c in tc for c in "hms"):
+        import re
+        total = 0.0
+        # Extract h, m, s, ms components
+        m = re.search(r"(\d+)\s*h", tc)
+        if m: total += int(m.group(1)) * 3600
+        m = re.search(r"(\d+)\s*m(?!s)", tc)  # m but not ms
+        if m: total += int(m.group(1)) * 60
+        m = re.search(r"(\d+(?:\.\d+)?)\s*s(?!c|m)", tc)  # s but not sec/sms
+        if m: total += float(m.group(1))
+        m = re.search(r"(\d+)\s*ms", tc)
+        if m: total += int(m.group(1)) / 1000.0
+        return total
+
+    # Standard MM:SS.cc or HH:MM:SS.cc
+    if ":" in tc:
+        parts = tc.replace(",", ".").split(":")
+        try:
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+            elif len(parts) == 2:
+                return int(parts[0]) * 60 + float(parts[1])
+        except ValueError:
+            return 0.0
+
+    # Raw seconds float
+    try:
+        return float(tc)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 # ============================================================

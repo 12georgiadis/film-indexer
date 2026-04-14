@@ -28,6 +28,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Optional
 
 # Setup repo path
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -39,8 +40,13 @@ from film_indexer.schemas import (
 from film_indexer.lib.gemini import GeminiClient, MODEL_PASS_A_FALLBACK, MODEL_PASS_B_REASONING
 from film_indexer.lib.transcode import probe_duration, transcode_proxy_ffmpeg_nvenc
 from film_indexer.lib.fcpxml import write_fcpxml
+from film_indexer.state.db import State
 
 import xxhash
+
+
+# Default state DB location
+DEFAULT_STATE_DB = Path("C:/Goldberg/film-indexer/state.db") if os.name == "nt" else Path("/tmp/film_indexer_state.db")
 
 
 PROMPTS_DIR = REPO_ROOT / "film_indexer" / "prompts"
@@ -61,9 +67,13 @@ def hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
-    """Run the full PoC pipeline on a single clip."""
+def run_pipeline(src: Path, out_dir: Path, state_db: Optional[Path] = None) -> ClipAnalysis:
+    """Run the full PoC pipeline on a single clip.
+
+    If state_db is provided, costs and artifacts are logged to SQLite for tracking.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
+    state = State(state_db) if state_db else None
 
     print(f"\n{'='*60}")
     print(f"FILM-INDEXER PoC — single clip pipeline")
@@ -270,9 +280,21 @@ def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
     # CONSOLIDATE
     # ============================================================
     total_cost = sum(m["cost_usd"] for m in [meta_a, meta_m, meta_b, meta_p, meta_s])
-    if malcolm and "malcolm" in timings:
-        # malcom meta wasn't captured here, approximate
-        pass
+
+    # Log costs to SQLite if state available
+    if state:
+        for pass_name, meta in [
+            ("pass_a", meta_a), ("murch", meta_m), ("baxter", meta_b),
+            ("pagh_andersen", meta_p), ("synthese", meta_s)
+        ]:
+            state.log_cost(
+                model=meta["model"],
+                tokens_in=meta["tokens_in"],
+                tokens_out=meta["tokens_out"],
+                cost_usd=meta["cost_usd"],
+                clip_hash=clip_hash,
+                pass_name=pass_name,
+            )
 
     analysis = ClipAnalysis(
         clip_hash=clip_hash,
