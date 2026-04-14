@@ -14,6 +14,7 @@ Modèles utilisés :
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -23,7 +24,7 @@ from typing import Optional, Type, TypeVar
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, AsyncRetrying
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -178,6 +179,94 @@ class GeminiClient:
             "latency_s": round(latency, 2),
         }
         return obj, meta
+
+    # ============================================================
+    # ASYNC GENERATE (true parallelism via client.aio)
+    # ============================================================
+
+    async def generate_structured_async(
+        self,
+        model: str,
+        contents: list,
+        schema: Type[T],
+        system_instruction: Optional[str] = None,
+        thinking_level: str = "low",
+        max_retries: int = 3,
+    ) -> tuple[T, dict]:
+        """Async version using client.aio for true concurrent Gemini calls.
+
+        Use with asyncio.gather() to parallelize Pass B voices or batch clips.
+        """
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential(multiplier=2, min=2, max=30),
+            retry=retry_if_exception_type((RuntimeError, ValidationError)),
+            reraise=True,
+        ):
+            with attempt:
+                start = time.time()
+
+                config: dict = {
+                    "response_mime_type": "application/json",
+                }
+                if system_instruction:
+                    schema_json = schema.model_json_schema()
+                    schema_hint = json.dumps(schema_json, indent=2, ensure_ascii=False)
+                    full_system = (
+                        f"{system_instruction}\n\n---\n\n"
+                        f"OUTPUT JSON SCHEMA (must match exactly, no extra fields):\n"
+                        f"```json\n{schema_hint}\n```"
+                    )
+                    config["system_instruction"] = full_system
+
+                if "gemini-3" in model:
+                    config["thinking_config"] = types.ThinkingConfig(
+                        thinking_budget=0 if thinking_level == "minimal" else -1
+                    )
+
+                try:
+                    response = await self.client.aio.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=config,
+                    )
+                except Exception as e:
+                    raise RuntimeError(f"Gemini async API failed on {model}: {e}") from e
+
+                latency = time.time() - start
+                usage = getattr(response, "usage_metadata", None)
+                tokens_in = getattr(usage, "prompt_token_count", 0) or 0
+                tokens_out = getattr(usage, "candidates_token_count", 0) or 0
+
+                pricing = PRICING.get(model, {"input": 0, "output": 0})
+                cost = (tokens_in / 1e6) * pricing["input"] + (tokens_out / 1e6) * pricing["output"]
+
+                text = response.text
+                if not text:
+                    raise RuntimeError(f"Empty response from {model}")
+
+                try:
+                    data = json.loads(text)
+                except json.JSONDecodeError as e:
+                    raise RuntimeError(f"Invalid JSON from {model}: {e}\nText: {text[:500]}") from e
+
+                try:
+                    obj = schema.model_validate(data)
+                except ValidationError as e:
+                    raise RuntimeError(f"Schema validation failed for {schema.__name__}: {e}") from e
+
+                return obj, {
+                    "model": model,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "cost_usd": round(cost, 6),
+                    "latency_s": round(latency, 2),
+                }
+
+    async def upload_video_async(self, video_path: Path, mime_type: str = "video/mp4") -> types.File:
+        """Async upload (uses thread pool internally since SDK upload is sync)."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: self.upload_video(video_path, mime_type))
 
     # ============================================================
     # CLEANUP
