@@ -6,6 +6,8 @@ Pipeline d'indexation sémantique de rushes documentaire qui fait passer chaque 
 
 **Status:** Beta / PoC validé bout-en-bout.
 
+> **2026 update — SpliceKit complement**: film-indexer generates FCPXML keyword ranges that you import into FCP manually. For real-time injection without the XML roundtrip, pair it with [SpliceKit MCP](https://github.com/elliotttate/SpliceKit) — a Claude Code MCP that controls FCP directly in-process. film-indexer handles the indexing and analysis; SpliceKit handles the live timeline writes.
+
 ---
 
 ## Why this exists
