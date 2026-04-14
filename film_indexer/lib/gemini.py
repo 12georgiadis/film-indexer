@@ -107,11 +107,14 @@ class GeminiClient:
 
         Returns (parsed_object, metadata_dict).
         Metadata includes: tokens_in, tokens_out, cost_usd, model, latency_s.
+
+        Uses google-genai response_schema natif pour forcer la structure exacte.
         """
         start = time.time()
 
         config: dict = {
             "response_mime_type": "application/json",
+            "response_schema": schema,  # Force la structure pydantic exacte
         }
         if system_instruction:
             config["system_instruction"] = system_instruction

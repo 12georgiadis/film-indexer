@@ -19,78 +19,86 @@ SCHEMA_VERSION = "1.0.0"
 
 
 # ============================================================
-# PASS A — EXTRACTION FACTUELLE
+# PASS A — EXTRACTION FACTUELLE (structure groupée pour Gemini)
 # ============================================================
 
 
 class PeopleObservation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    count: Optional[Literal["null", "one_person", "two_people", "group"]] = None
+    model_config = ConfigDict(extra="ignore")
+    count: Optional[str] = None  # null | one_person | two_people | group
     descriptions: list[str] = Field(default_factory=list)
     emotions: list[str] = Field(default_factory=list)
 
 
 class SceneObservation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    location: Optional[Literal["interieur", "exterieur"]] = None
-    environment: Optional[str] = None  # urbain | nature | industriel | domestique | institutionnel
-    time_of_day: Optional[str] = None  # jour | golden hour | crepuscule | nuit
+    model_config = ConfigDict(extra="ignore")
+    location: Optional[str] = None  # interieur | exterieur
+    environment: Optional[str] = None
+    time_of_day: Optional[str] = None
     weather: Optional[str] = None
 
 
 class AestheticObservation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     dominant_colors: Optional[str] = None
     lighting: Optional[str] = None
     mood: Optional[str] = None
 
 
-class TranscriptSegment(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    start_s: Optional[float] = None
-    end_s: Optional[float] = None
-    speaker: Optional[str] = None
-    text: str
-
-
-class PassA(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    schema_version: str = SCHEMA_VERSION
-    clip_hash: str
-    clip_path: str
-    duration_s: float
-
-    # Visual Search FCP 12
+class VisualSearch(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     objects: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
-    people: PeopleObservation
+    people: PeopleObservation = Field(default_factory=PeopleObservation)
     shot_type: Optional[str] = None
     camera_movement: Optional[str] = None
-    scene: SceneObservation
-    aesthetic: AestheticObservation
+    scene: SceneObservation = Field(default_factory=SceneObservation)
+    aesthetic: AestheticObservation = Field(default_factory=AestheticObservation)
 
-    # Audio + transcript
-    transcript: list[TranscriptSegment] = Field(default_factory=list)
+
+class AudioTranscript(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    transcript: str = ""
     language: Optional[str] = None
     speakers: list[str] = Field(default_factory=list)
     speaker_count: int = 0
     dominant_sounds: list[str] = Field(default_factory=list)
-    audio_quality: Optional[Literal["studio", "clean", "acceptable", "noisy", "unusable"]] = None
+    audio_quality: Optional[str] = None  # studio | clean | acceptable | noisy | unusable
     silence_moments_seconds: list[float] = Field(default_factory=list)
 
-    # Technique
+
+class Technique(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    duration_s: float = 0.0
     estimated_snr_db: Optional[float] = None
     clipping_detected: bool = False
-    focus_quality: Optional[Literal["sharp", "soft", "out_of_focus"]] = None
-    exposure: Optional[Literal["underexposed", "correct", "overexposed", "mixed"]] = None
+    focus_quality: Optional[str] = None  # sharp | soft | out_of_focus
+    exposure: Optional[str] = None  # underexposed | correct | overexposed | mixed
 
-    # Goldberg-specific tagging
-    personas_detected: list[str] = Field(default_factory=list)  # persona:tag
+
+class ProjectTags(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    personas_detected: list[str] = Field(default_factory=list)
     themes_detected: list[str] = Field(default_factory=list)
     targets_detected: list[str] = Field(default_factory=list)
     sensitive_flags: list[str] = Field(default_factory=list)
 
-    # FCP search
+
+class PassA(BaseModel):
+    """Extraction factuelle d'un clip — structure groupée pour Gemini.
+
+    clip_hash, clip_path, schema_version sont remplis par notre code (pas Gemini).
+    """
+    model_config = ConfigDict(extra="ignore")
+    schema_version: str = SCHEMA_VERSION
+    clip_hash: str = ""
+    clip_path: str = ""
+
+    visual_search: VisualSearch = Field(default_factory=VisualSearch)
+    audio_transcript: AudioTranscript = Field(default_factory=AudioTranscript)
+    technique: Technique = Field(default_factory=Technique)
+    project_tags: ProjectTags = Field(default_factory=ProjectTags)
+
     natural_language_queries: list[str] = Field(default_factory=list)
 
 

@@ -130,10 +130,10 @@ def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
         system_instruction=full_pass_a_system,
         thinking_level="low",
     )
-    # Override technical fields
+    # Override technical fields (filled by us, not Gemini)
     pass_a.clip_hash = clip_hash
     pass_a.clip_path = str(src)
-    pass_a.duration_s = duration
+    pass_a.technique.duration_s = duration
     print(f"      Pass A OK : {meta_a['tokens_in']} in / {meta_a['tokens_out']} out / ${meta_a['cost_usd']:.4f}")
     timings["pass_a"] = time.time() - t
 
@@ -228,7 +228,7 @@ def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
     # STEP 9 : JANET MALCOLM (CONDITIONNEL)
     # ============================================================
     malcolm = None
-    if pass_a.sensitive_flags or any("verbatim" in f for f in pass_a.sensitive_flags):
+    if pass_a.project_tags.sensitive_flags:
         t = time.time()
         print(f"[9a/9] Council éthique Janet Malcolm (conditionnel — sensibles détectés)...")
         malcolm_prompt = load_prompt("janet_malcolm_v1")
