@@ -114,9 +114,21 @@ class GeminiClient:
 
         config: dict = {
             "response_mime_type": "application/json",
-            "response_schema": schema,  # Force la structure pydantic exacte
         }
+        # NOTE: response_schema=pydantic_class fails because google-genai serializes
+        # 'additionalProperties' which Gemini API doesn't recognize. We rely on
+        # tolerant pydantic validation (extra="allow") + retry on parse error.
+
         if system_instruction:
+            # Append explicit JSON shape hint at end of system instruction
+            schema_json = schema.model_json_schema()
+            schema_hint = json.dumps(schema_json, indent=2, ensure_ascii=False)
+            system_instruction = (
+                f"{system_instruction}\n\n"
+                f"---\n\n"
+                f"OUTPUT JSON SCHEMA (must match exactly, no extra fields):\n"
+                f"```json\n{schema_hint}\n```"
+            )
             config["system_instruction"] = system_instruction
 
         # Try with thinking_config if model supports it
