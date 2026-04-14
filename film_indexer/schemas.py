@@ -108,68 +108,69 @@ class PassA(BaseModel):
 
 
 class MomentCle(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    timecode: str  # MM:SS.cc
-    duree_utile_sec: float
-    nature: Literal["regard", "souffle", "micro-geste", "bascule-emotion", "silence", "parole-vraie", "accident", "aucun"]
-    raison: str  # 25 mots max
+    """Tolerant to French/English field variants since Gemini improvises."""
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    timecode: Optional[str] = None  # MM:SS.cc
+    duree_utile_sec: Optional[float] = Field(default=None, alias="duration_useful_sec")
+    nature: Optional[str] = None
+    raison: Optional[str] = Field(default=None, alias="reason")
 
 
 class CriteresMurch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    emotion: int = Field(ge=0, le=10)
-    histoire: int = Field(ge=0, le=10)
-    rythme: int = Field(ge=0, le=10)
-    regard: int = Field(ge=0, le=10)
-    plan_2d: int = Field(ge=0, le=10)
-    espace_3d: int = Field(ge=0, le=10)
-    score_total: float
+    model_config = ConfigDict(extra="allow")
+    emotion: Optional[int] = Field(default=None, ge=0, le=10)
+    histoire: Optional[int] = Field(default=None, ge=0, le=10)
+    rythme: Optional[int] = Field(default=None, ge=0, le=10)
+    regard: Optional[int] = Field(default=None, ge=0, le=10)
+    plan_2d: Optional[int] = Field(default=None, ge=0, le=10)
+    espace_3d: Optional[int] = Field(default=None, ge=0, le=10)
+    score_total: Optional[float] = None
 
 
 class AnalyseSon(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    verdict_son: Literal["PORTE_LE_PLAN", "SOUTIENT", "NEUTRE", "TRAHIT"]
-    texture: str
-    silence_utile: bool
-    le_son_sauve_l_image: bool
+    model_config = ConfigDict(extra="allow")
+    verdict_son: Optional[str] = None
+    texture: Optional[str] = None
+    silence_utile: Optional[bool] = None
+    le_son_sauve_l_image: Optional[bool] = None
     worldizing_naturel: Optional[str] = None
 
 
 class ConseilEditorial(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    usage_recommande: Literal["ouverture", "transition", "climax", "respiration", "b_roll_textuel", "a_eviter"]
-    position_dans_sequence: Literal["tete", "corps", "queue", "isole"]
-    couper_a: str  # MM:SS.cc
-    ne_pas_depasser: str  # MM:SS.cc
-    danger: Optional[str] = None  # 'Joshua se regarde performer ici'
+    model_config = ConfigDict(extra="allow")
+    usage_recommande: Optional[str] = None
+    position_dans_sequence: Optional[str] = None
+    couper_a: Optional[str] = None
+    ne_pas_depasser: Optional[str] = None
+    danger: Optional[str] = None
 
 
 class RaccordsContinuite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    regard_entrant: Literal["gauche", "droite", "camera", "absent"]
-    regard_sortant: Literal["gauche", "droite", "camera", "absent"]
+    model_config = ConfigDict(extra="allow")
+    regard_entrant: Optional[str] = None
+    regard_sortant: Optional[str] = None
     mouvement_entrant: Optional[str] = None
     mouvement_sortant: Optional[str] = None
-    blink_naturel_a: Optional[str] = None  # MM:SS.cc
+    blink_naturel_a: Optional[str] = None
 
 
 class Murch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     schema_version: str = SCHEMA_VERSION
-    clip_hash: str
+    clip_hash: str = ""
 
-    statut_prise: Literal["EXCEPTIONNELLE", "BONNE", "PASSABLE", "MAUVAISE"]
-    justification_verdict: str  # 20 mots max
+    statut_prise: Optional[str] = None
+    justification_verdict: Optional[str] = None
 
-    moment_cle: MomentCle
-    emotion_dominante_primaire: str  # 1 mot concret (vergogne, defi, vide, jubilation-froide)
-    emotion_temperature: Literal["froide", "tiede", "brulante"]
+    moment_cle: MomentCle = Field(default_factory=MomentCle)
+    emotion_dominante_primaire: Optional[str] = None
+    emotion_temperature: Optional[str] = None
     emotion_ambivalence: Optional[str] = None
 
-    criteres_murch: CriteresMurch
-    analyse_son: AnalyseSon
-    conseil_editorial: ConseilEditorial
-    raccords_continuite: RaccordsContinuite
+    criteres_murch: CriteresMurch = Field(default_factory=CriteresMurch)
+    analyse_son: AnalyseSon = Field(default_factory=AnalyseSon)
+    conseil_editorial: ConseilEditorial = Field(default_factory=ConseilEditorial)
+    raccords_continuite: RaccordsContinuite = Field(default_factory=RaccordsContinuite)
 
 
 # ============================================================
@@ -178,52 +179,52 @@ class Murch(BaseModel):
 
 
 class ReactionVsAction(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["ACTION", "REACTION", "LES_DEUX", "INDETERMINE"]
+    model_config = ConfigDict(extra="allow")
+    type: Optional[str] = None
     valeur_reaction: Optional[str] = None
-    intensite: int = Field(ge=1, le=5)
+    intensite: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class BlinkAnalysis(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    cut_points_estimes: list[str] = Field(default_factory=list)  # ranges "00:14.20-00:14.80"
-    confiance: Literal["HAUTE", "MOYENNE", "BASSE"]
-    proxy_utilise: Optional[Literal["blink", "relachement_musculaire", "fin_expiration", "regard_eteint", "deglutition"]] = None
+    model_config = ConfigDict(extra="allow")
+    cut_points_estimes: list[str] = Field(default_factory=list)
+    confiance: Optional[str] = None
+    proxy_utilise: Optional[str] = None
 
 
 class TempoFincher(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    registre: Literal["ZEN_CONTROLE", "CHAOS_PERTE_CONTROLE", "TRANSITION"]
-    jump_cut_eligible: bool
-    etirement_possible_sec: float
+    model_config = ConfigDict(extra="allow")
+    registre: Optional[str] = None
+    jump_cut_eligible: Optional[bool] = None
+    etirement_possible_sec: Optional[float] = None
 
 
 class SonRenKlyce(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    texture: str
-    j_cut_potential: Literal["HAUT", "MOYEN", "NUL"]
-    l_cut_potential: Literal["HAUT", "MOYEN", "NUL"]
-    ancrage_sonore: Optional[str] = None  # MM:SS.cc
+    model_config = ConfigDict(extra="allow")
+    texture: Optional[str] = None
+    j_cut_potential: Optional[str] = None
+    l_cut_potential: Optional[str] = None
+    ancrage_sonore: Optional[str] = None
 
 
 class PoidsTemporel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    duree_ideale_sec: float
-    risk_too_long: str
-    risk_too_short: str
+    model_config = ConfigDict(extra="allow")
+    duree_ideale_sec: Optional[float] = None
+    risk_too_long: Optional[str] = None
+    risk_too_short: Optional[str] = None
 
 
 class Baxter(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     schema_version: str = SCHEMA_VERSION
-    clip_hash: str
+    clip_hash: str = ""
 
-    reaction_vs_action: ReactionVsAction
-    blink_analysis: BlinkAnalysis
-    tempo_fincher: TempoFincher
-    son_ren_klyce: SonRenKlyce
-    poids_temporel: PoidsTemporel
-    verdict_baxter: str  # UNE phrase tranchante
+    reaction_vs_action: ReactionVsAction = Field(default_factory=ReactionVsAction)
+    blink_analysis: BlinkAnalysis = Field(default_factory=BlinkAnalysis)
+    tempo_fincher: TempoFincher = Field(default_factory=TempoFincher)
+    son_ren_klyce: SonRenKlyce = Field(default_factory=SonRenKlyce)
+    poids_temporel: PoidsTemporel = Field(default_factory=PoidsTemporel)
+    verdict_baxter: Optional[str] = None
 
 
 # ============================================================
@@ -232,24 +233,21 @@ class Baxter(BaseModel):
 
 
 class PaghAndersen(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     schema_version: str = SCHEMA_VERSION
-    clip_hash: str
+    clip_hash: str = ""
 
-    apport_arc_joshua: str  # 1 phrase : ce que ce plan ajoute
-    apport_type: Literal["nouveau_pli", "confirme_pli", "contredit", "ouvre_porte_persona", "cul_de_sac"]
+    apport_arc_joshua: Optional[str] = None
+    apport_type: Optional[str] = None
+    acte_film: Optional[str] = None
+    fonction_structurelle: Optional[str] = None
+    plan_frere_appele: Optional[str] = None
 
-    acte_film: Literal["acte_1_jacksonville_present", "acte_2_persona_factory", "acte_3_australi_witness_arrestation", "acte_4_prison", "acte_5_present_qui_parle", "transverse"]
-
-    fonction_structurelle: Literal["PILIER", "LIEN"]
-
-    plan_frere_appele: str  # 1 phrase : ce qui doit précéder ou suivre
-
-    performance_score: int = Field(ge=0, le=100)  # 0 = vrai Joshua, 100 = pure performance
-    drop_moment_timecode: Optional[str] = None  # le moment où Joshua sort de sa fiction
+    performance_score: Optional[int] = Field(default=None, ge=0, le=100)
+    drop_moment_timecode: Optional[str] = None
     drop_moment_description: Optional[str] = None
 
-    note_pagh: str  # 1 phrase finale lisible à 3h du matin
+    note_pagh: Optional[str] = None
 
 
 # ============================================================
@@ -258,26 +256,26 @@ class PaghAndersen(BaseModel):
 
 
 class JanetMalcolm(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     schema_version: str = SCHEMA_VERSION
-    clip_hash: str
+    clip_hash: str = ""
 
-    qui_parle: str  # 1 phrase : Joshua volontaire / inconscient / persona / etc.
-    qui_est_blesse: list[str]  # liste des entités blessées potentielles
+    qui_parle: Optional[str] = None
+    qui_est_blesse: list[str] = Field(default_factory=list)
 
-    source_autorise_usage: bool
-    verbatim_required: bool  # True si source PACER/Corrlinks
-    verbatim_source: Optional[Literal["PACER_100_7", "PACER_100_8", "PACER_89_1", "PACER_89_2", "CORRLINKS", "OTHER"]] = None
+    source_autorise_usage: Optional[bool] = None
+    verbatim_required: Optional[bool] = None
+    verbatim_source: Optional[str] = None
 
-    rend_violence_consommable: bool
+    rend_violence_consommable: Optional[bool] = None
 
-    target_present: bool
-    targets: list[str] = Field(default_factory=list)  # list of target tags
+    target_present: Optional[bool] = None
+    targets: list[str] = Field(default_factory=list)
 
-    verdict: Literal["USABLE", "CONDITIONAL", "UNUSABLE"]
-    conditions: list[str] = Field(default_factory=list)  # floutage, voix-off recontextualisée, carton, non-usage
+    verdict: Optional[str] = None
+    conditions: list[str] = Field(default_factory=list)
 
-    note_finale_malcolm: str  # 1 phrase pour Ismaël à 3h du matin
+    note_finale_malcolm: Optional[str] = None
 
 
 # ============================================================
@@ -286,15 +284,15 @@ class JanetMalcolm(BaseModel):
 
 
 class SyntheseFCP(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     schema_version: str = SCHEMA_VERSION
-    clip_hash: str
+    clip_hash: str = ""
 
-    fcp_note_3_lines: str
-    keywords: list[str]  # ["#or", "#joshua-bascule", "#performance:tanya_cohen", "#verbatim"]
-    priority_1_5: int = Field(ge=1, le=5)
-    edit_intent: Literal["A_ROLL", "B_ROLL", "REJECT", "DEEP_REVIEW"]
-    link_to_full_council: Optional[str] = None  # path vers JSON complet
+    fcp_note_3_lines: Optional[str] = None
+    keywords: list[str] = Field(default_factory=list)
+    priority_1_5: Optional[int] = Field(default=None, ge=1, le=5)
+    edit_intent: Optional[str] = None
+    link_to_full_council: Optional[str] = None
 
 
 # ============================================================
@@ -304,7 +302,7 @@ class SyntheseFCP(BaseModel):
 
 class ClipAnalysis(BaseModel):
     """Consolide les 4-5 passes éditoriales d'un clip."""
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     schema_version: str = SCHEMA_VERSION
     clip_hash: str
     clip_path: str
