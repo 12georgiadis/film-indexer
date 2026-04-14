@@ -78,7 +78,7 @@ python -m film_indexer.poc_single_clip \
 
 Génère : `<hash>_FINAL.json` (analyse consolidée) + `<hash>.fcpxml` (à importer dans FCP 12).
 
-### Batch async (true parallelism)
+### Batch run (recommended)
 
 ```bash
 # Phase 0 : scanner les drives
@@ -87,14 +87,17 @@ python -m film_indexer.scan_drives \
   --since 2026-02-18 \
   --db state.db
 
-# Phase 3 : batch council Gemini
-python -m film_indexer.async_pipeline \
+# Phase 3 : batch council Gemini (recommended path, stable)
+python -m film_indexer.batch_run \
   --db state.db \
   --out /path/to/output \
   --limit 100 \
-  --workers 6 \
+  --workers 4 \
   --budget-cap 30.0
 ```
+
+> **Note :** `async_pipeline.py` existe mais a un bug Pass B (asyncio.gather silencieux).
+> Utiliser `batch_run.py` pour la production. Le vrai async sera réglé dans une prochaine version.
 
 ### FCPXML patcher (Lumberyard pattern)
 
