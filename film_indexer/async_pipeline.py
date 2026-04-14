@@ -59,22 +59,29 @@ async def process_one_clip(
     semaphore: asyncio.Semaphore,
     prompts: dict,
 ) -> dict:
-    """Process one clip with true async Pass B parallelism."""
+    """Process one clip with true async Pass B parallelism.
+
+    NOTE: Pass A (video upload + analyze) stays sync because google-genai
+    File objects might have sync/async client affinity. Pass B (text-only)
+    uses full async for real parallelism.
+    """
+    clip_hash = "unknown"
     async with semaphore:
         t_start = time.time()
         try:
-            # Step 1 : probe
-            duration = probe_duration(src)
+            print(f"[async] start {src.name}", flush=True)
+
+            # Step 1 : probe + hash (sync, run in executor)
+            loop = asyncio.get_event_loop()
+            duration = await loop.run_in_executor(None, lambda: probe_duration(src))
             if duration is None:
                 return {"status": "failed", "src": str(src), "error": "probe failed"}
 
-            # Step 2 : hash
-            clip_hash = hash_file(src)
+            clip_hash = await loop.run_in_executor(None, lambda: hash_file(src))
 
-            # Step 3 : transcode (sync, I/O bound)
+            # Step 3 : transcode (sync in executor)
             proxy_path = out_dir / f"{clip_hash}_720p.mp4"
             if not proxy_path.exists():
-                loop = asyncio.get_event_loop()
                 ok = await loop.run_in_executor(
                     None, lambda: transcode_proxy_ffmpeg_nvenc(src, proxy_path)
                 )
@@ -82,18 +89,21 @@ async def process_one_clip(
                     state.update_clip_status(clip_hash, "transcode_failed")
                     return {"status": "failed", "src": str(src), "error": "transcode"}
 
-            # Step 4 : upload
-            file = await client.upload_video_async(proxy_path)
+            # Step 4+5 : upload + Pass A (sync in executor for File-object compat)
+            def _pass_a_sync():
+                f = client.upload_video(proxy_path)
+                pa_system = f"{prompts['pass_a']}\n\n---\n\n{prompts['goldberg_context']}"
+                pa, meta = client.generate_structured(
+                    model=MODEL_PASS_A_FALLBACK,
+                    contents=[f, "Analyse ce clip et produis le JSON Pass A factuel selon les instructions du system prompt."],
+                    schema=PassA,
+                    system_instruction=pa_system,
+                    thinking_level="low",
+                )
+                return pa, meta, f
 
-            # Step 5 : Pass A factuel (vidéo, séquentiel car il fournit le contexte)
-            pass_a_system = f"{prompts['pass_a']}\n\n---\n\n{prompts['goldberg_context']}"
-            pass_a, meta_a = await client.generate_structured_async(
-                model=MODEL_PASS_A_FALLBACK,
-                contents=[file, "Analyse ce clip et produis le JSON Pass A factuel selon les instructions du system prompt."],
-                schema=PassA,
-                system_instruction=pass_a_system,
-                thinking_level="low",
-            )
+            pass_a, meta_a, file = await loop.run_in_executor(None, _pass_a_sync)
+            print(f"[async] {clip_hash[:12]} Pass A OK (${meta_a['cost_usd']:.4f})", flush=True)
             pass_a.clip_hash = clip_hash
             pass_a.clip_path = str(src)
             pass_a.technique.duration_s = duration
