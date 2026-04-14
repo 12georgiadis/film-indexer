@@ -37,6 +37,7 @@ from film_indexer.schemas import (
 )
 from film_indexer.lib.gemini import GeminiClient, MODEL_PASS_A_FALLBACK, MODEL_PASS_B_REASONING
 from film_indexer.lib.transcode import probe_duration, transcode_proxy_ffmpeg_nvenc
+from film_indexer.lib.fcpxml import write_fcpxml
 
 import xxhash
 
@@ -307,10 +308,23 @@ def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
     final_path = out_dir / f"{clip_hash}_FINAL.json"
     final_path.write_text(analysis.model_dump_json(indent=2), encoding="utf-8")
 
+    # ============================================================
+    # FCPXML OUTPUT
+    # ============================================================
+    print(f"[10/9] FCPXML writer...")
+    fcpxml_path = out_dir / f"{clip_hash}.fcpxml"
+    try:
+        write_fcpxml(analysis, fcpxml_path, fps=25.0)
+        print(f"      FCPXML : {fcpxml_path} ({fcpxml_path.stat().st_size} bytes)")
+    except Exception as e:
+        print(f"      FCPXML write FAILED: {e}")
+        import traceback; traceback.print_exc()
+
     print(f"\n{'='*60}")
     print(f"DONE — Total cost ${total_cost:.4f}")
     print(f"Total time : {sum(timings.values()):.1f}s")
     print(f"Final JSON : {final_path}")
+    print(f"FCPXML     : {fcpxml_path}")
     print(f"{'='*60}\n")
 
     # Cleanup uploaded file
