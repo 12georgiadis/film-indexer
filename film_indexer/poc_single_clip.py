@@ -26,6 +26,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # Setup repo path
@@ -142,87 +143,68 @@ def run_pipeline(src: Path, out_dir: Path) -> ClipAnalysis:
     (out_dir / f"{clip_hash}_pass_a.json").write_text(pass_a_json, encoding="utf-8")
 
     # ============================================================
-    # STEP 6 : MURCH
+    # STEPS 6+7+8 : MURCH + BAXTER + PAGH EN PARALLÈLE
+    # Les 3 voix éditoriales ne dépendent que de Pass A → parallélisables.
+    # Note : Baxter et Pagh ne reçoivent pas le verdict Murch dans cette
+    # version parallèle — chacun reçoit Pass A seulement. C'est un trade-off
+    # vitesse vs contexte. Les 3 voix restent cohérentes car chacun a le
+    # contexte Goldberg complet.
     # ============================================================
     t = time.time()
-    print(f"[6/9] Pass B Murch ({MODEL_PASS_B_REASONING})...")
-    murch_prompt = load_prompt("murch_v1")
-    murch_system = f"{murch_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
+    print(f"[6-8/9] Pass B Murch + Baxter + Pagh en parallèle ({MODEL_PASS_B_REASONING})...")
 
-    murch_input = (
-        "Voici le JSON Pass A factuel d'un clip Goldberg. Produis ton verdict éditorial Murch :\n\n"
+    murch_prompt = load_prompt("murch_v1")
+    baxter_prompt = load_prompt("baxter_v1")
+    pagh_prompt = load_prompt("pagh_andersen_v1")
+
+    murch_system = f"{murch_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
+    baxter_system = f"{baxter_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
+    pagh_system = f"{pagh_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
+
+    common_input = (
+        "Voici le JSON Pass A factuel d'un clip Goldberg. Produis ton analyse selon ton rôle :\n\n"
         f"```json\n{pass_a_json}\n```"
     )
 
-    murch, meta_m = client.generate_structured(
-        model=MODEL_PASS_B_REASONING,
-        contents=[murch_input],
-        schema=Murch,
-        system_instruction=murch_system,
-        thinking_level="low",
-    )
+    def call_murch():
+        return client.generate_structured(
+            model=MODEL_PASS_B_REASONING, contents=[common_input], schema=Murch,
+            system_instruction=murch_system, thinking_level="low",
+        )
+
+    def call_baxter():
+        return client.generate_structured(
+            model=MODEL_PASS_B_REASONING, contents=[common_input], schema=Baxter,
+            system_instruction=baxter_system, thinking_level="low",
+        )
+
+    def call_pagh():
+        return client.generate_structured(
+            model=MODEL_PASS_B_REASONING, contents=[common_input], schema=PaghAndersen,
+            system_instruction=pagh_system, thinking_level="low",
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        f_m = executor.submit(call_murch)
+        f_b = executor.submit(call_baxter)
+        f_p = executor.submit(call_pagh)
+
+        murch, meta_m = f_m.result()
+        baxter, meta_b = f_b.result()
+        pagh, meta_p = f_p.result()
+
     murch.clip_hash = clip_hash
-    print(f"      Murch verdict : {murch.statut_prise} | {murch.justification_verdict}")
-    print(f"      Cost : ${meta_m['cost_usd']:.4f}")
-    timings["murch"] = time.time() - t
+    baxter.clip_hash = clip_hash
+    pagh.clip_hash = clip_hash
+
+    print(f"      Murch  : {murch.statut_prise} | {murch.justification_verdict[:80]}")
+    print(f"      Baxter : {baxter.verdict_baxter[:80]}")
+    print(f"      Pagh   : {pagh.note_pagh[:80]}")
+    print(f"      Total cost Pass B : ${meta_m['cost_usd'] + meta_b['cost_usd'] + meta_p['cost_usd']:.4f}")
+    timings["pass_b_parallel"] = time.time() - t
 
     (out_dir / f"{clip_hash}_murch.json").write_text(murch.model_dump_json(indent=2), encoding="utf-8")
-
-    # ============================================================
-    # STEP 7 : BAXTER
-    # ============================================================
-    t = time.time()
-    print(f"[7/9] Pass B Baxter ({MODEL_PASS_B_REASONING})...")
-    baxter_prompt = load_prompt("baxter_v1")
-    baxter_system = f"{baxter_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
-
-    baxter_input = (
-        "Voici le JSON Pass A factuel + le verdict Murch d'un clip Goldberg. Produis ta couche Baxter :\n\n"
-        f"PASS A:\n```json\n{pass_a_json}\n```\n\n"
-        f"MURCH:\n```json\n{murch.model_dump_json(indent=2)}\n```"
-    )
-
-    baxter, meta_b = client.generate_structured(
-        model=MODEL_PASS_B_REASONING,
-        contents=[baxter_input],
-        schema=Baxter,
-        system_instruction=baxter_system,
-        thinking_level="low",
-    )
-    baxter.clip_hash = clip_hash
-    print(f"      Baxter verdict : {baxter.verdict_baxter}")
-    print(f"      Cost : ${meta_b['cost_usd']:.4f}")
-    timings["baxter"] = time.time() - t
-
     (out_dir / f"{clip_hash}_baxter.json").write_text(baxter.model_dump_json(indent=2), encoding="utf-8")
-
-    # ============================================================
-    # STEP 8 : PAGH ANDERSEN
-    # ============================================================
-    t = time.time()
-    print(f"[8/9] Pass B Pagh Andersen ({MODEL_PASS_B_REASONING})...")
-    pagh_prompt = load_prompt("pagh_andersen_v1")
-    pagh_system = f"{pagh_prompt}\n\n---\n\nCONTEXTE PROJET :\n{goldberg_context}"
-
-    pagh_input = (
-        "Voici le JSON Pass A + Murch + Baxter d'un clip Goldberg. Produis ta couche Pagh Andersen :\n\n"
-        f"PASS A:\n```json\n{pass_a_json}\n```\n\n"
-        f"MURCH:\n```json\n{murch.model_dump_json(indent=2)}\n```\n\n"
-        f"BAXTER:\n```json\n{baxter.model_dump_json(indent=2)}\n```"
-    )
-
-    pagh, meta_p = client.generate_structured(
-        model=MODEL_PASS_B_REASONING,
-        contents=[pagh_input],
-        schema=PaghAndersen,
-        system_instruction=pagh_system,
-        thinking_level="low",
-    )
-    pagh.clip_hash = clip_hash
-    print(f"      Pagh Andersen note : {pagh.note_pagh}")
-    print(f"      Cost : ${meta_p['cost_usd']:.4f}")
-    timings["pagh_andersen"] = time.time() - t
-
     (out_dir / f"{clip_hash}_pagh_andersen.json").write_text(pagh.model_dump_json(indent=2), encoding="utf-8")
 
     # ============================================================
