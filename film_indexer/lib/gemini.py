@@ -125,9 +125,9 @@ class GeminiClient:
             schema_json = schema.model_json_schema()
             schema_hint = json.dumps(schema_json, indent=2, ensure_ascii=False)
             system_instruction = (
-                f"{system_instruction}\n\n"
-                f"---\n\n"
-                f"OUTPUT JSON SCHEMA (must match exactly, no extra fields):\n"
+                f"{system_instruction}\n\n---\n\n"
+                f"OUTPUT : retourne UN SEUL OBJET JSON (pas un array, pas une liste). "
+                f"Le schema à respecter exactement :\n"
                 f"```json\n{schema_hint}\n```"
             )
             config["system_instruction"] = system_instruction
@@ -164,6 +164,10 @@ class GeminiClient:
             data = json.loads(text)
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Invalid JSON from {model}: {e}\nText: {text[:500]}") from e
+
+        # Unwrap single-element list (Gemini sometimes echoes input array shape)
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+            data = data[0]
 
         # Validate against schema
         try:
@@ -212,7 +216,8 @@ class GeminiClient:
                     schema_hint = json.dumps(schema_json, indent=2, ensure_ascii=False)
                     full_system = (
                         f"{system_instruction}\n\n---\n\n"
-                        f"OUTPUT JSON SCHEMA (must match exactly, no extra fields):\n"
+                        f"OUTPUT : retourne UN SEUL OBJET JSON (pas un array, pas une liste). "
+                        f"Le schema à respecter exactement :\n"
                         f"```json\n{schema_hint}\n```"
                     )
                     config["system_instruction"] = full_system
@@ -241,6 +246,9 @@ class GeminiClient:
                     raise RuntimeError(f"Empty response from {model}")
 
                 data = json.loads(text)
+                # Unwrap if Gemini returned a single-element list instead of dict
+                if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+                    data = data[0]
                 obj = schema.model_validate(data)
 
                 return obj, {
