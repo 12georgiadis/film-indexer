@@ -171,3 +171,5 @@ MIT — Méthode publique, tes matériaux restent privés.
 - Inspirations méthode : Walter Murch (*In the Blink of an Eye*), Kirk Baxter (interviews Fincher/Mindhunter), Niels Pagh Andersen (*The Act of Killing* editor), Janet Malcolm (*The Journalist and the Murderer*)
 - Pattern FCPXML patching : Lumberyard (Philip Hodgetts / Intelligent Assistance)
 - Hardware de développement : Nomad PC (AMD Ryzen 9 9900X + RTX 5090 + 96 GB)
+
+Par [Ismaël Joffroy Chandoutis](https://ismaeljoffroychandoutis.com).
