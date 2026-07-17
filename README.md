@@ -1,10 +1,12 @@
+**English** · [Français](README.fr.md)
+
 # film-indexer
 
 > **Multi-perspective AI editorial council for documentary rushes** — Walter Murch + Kirk Baxter + Niels Pagh Andersen via Gemini, with FCPXML keyword injection for Final Cut Pro 12.
 
-Pipeline d'indexation sémantique de rushes documentaire qui fait passer chaque clip par plusieurs voix éditoriales LLM (Murch, Baxter, Pagh Andersen) et injecte les verdicts dans Final Cut Pro 12 via FCPXML keyword ranges + markers + custom metadata.
+A semantic indexing pipeline for documentary rushes that runs every clip through several LLM editorial voices (Murch, Baxter, Pagh Andersen) and injects the verdicts into Final Cut Pro 12 via FCPXML keyword ranges + markers + custom metadata.
 
-**Status:** Beta / PoC validé bout-en-bout.
+**Status:** Beta / end-to-end validated PoC.
 
 > **2026 update — SpliceKit complement**: film-indexer generates FCPXML keyword ranges that you import into FCP manually. For real-time injection without the XML roundtrip, pair it with [SpliceKit MCP](https://github.com/elliotttate/SpliceKit) — a Claude Code MCP that controls FCP directly in-process. film-indexer handles the indexing and analysis; SpliceKit handles the live timeline writes.
 
@@ -12,52 +14,52 @@ Pipeline d'indexation sémantique de rushes documentaire qui fait passer chaque 
 
 ## Why this exists
 
-Aucun outil sur le marché ne combine :
-- Analyse multi-LLM avec perspectives éditoriales humaines (Murch + Baxter + Pagh Andersen)
-- FCPXML 1.13 keyword ranges + markers timecodés injection
-- Batch scaling >1000 clips pour documentaire long format
-- Tuning projet-spécifique avec garde-fous éthiques
-- Hybride local (GPU) + cloud (Gemini) pour maîtriser les coûts
+No tool on the market combines:
+- Multi-LLM analysis with human editorial perspectives (Murch + Baxter + Pagh Andersen)
+- FCPXML 1.13 keyword ranges + timecoded markers injection
+- Batch scaling >1000 clips for feature-length documentary
+- Project-specific tuning with ethical guardrails
+- Hybrid local (GPU) + cloud (Gemini) to control costs
 
-Les alternatives existantes :
-| Outil | Limite |
+Existing alternatives:
+| Tool | Limitation |
 |-------|--------|
-| **Jumper** (Witchcraft) | Search local seulement, pas de génération keywords FCPXML batch |
-| **Strada** (Cioni) | 100% cloud lock-in, pas customisable |
-| **FCP Video Tag** (Ulti.Media) | Mono-modèle, pas de markers timecodés |
-| **Lumberjack backLogger** | Audio/transcript only, humain dans la boucle |
-| **Eddie AI** | Boîte noire, orienté cuts pas indexation |
-| **FCP 12 Visual Search natif** | Lent (0.2x RT), US English only, pas exportable FCPXML |
+| **Jumper** (Witchcraft) | Local search only, no batch FCPXML keyword generation |
+| **Strada** (Cioni) | 100% cloud lock-in, not customizable |
+| **FCP Video Tag** (Ulti.Media) | Single-model, no timecoded markers |
+| **Lumberjack backLogger** | Audio/transcript only, human in the loop |
+| **Eddie AI** | Black box, cuts-oriented not indexing |
+| **FCP 12 native Visual Search** | Slow (0.2x RT), US English only, not exportable to FCPXML |
 
-**film-indexer** est inédit sur l'angle "multi-perspective editorial council appliqué aux rushes documentaire".
+**film-indexer** is unprecedented on the "multi-perspective editorial council applied to documentary rushes" angle.
 
 ---
 
 ## Architecture
 
 ```
-Phase 0 — Inventaire        Scan multi-drives + hash xxh128 + SQLite state
-Phase 1 — Pre-processing    BRAW → proxy 720p (DaVinci), ffmpeg NVENC, audio extract
-Phase 2 — Triage local      SigLIP 2 + audio fingerprint (gratuit RTX 5090)
-Phase 3 — Council Gemini    5 voix (Pass A + Murch + Baxter + Pagh + Synthese)
-                            + Janet Malcolm ethics conditionnel
-Phase 4 — FCPXML patch      Lumberyard pattern, patch FCPXML existant de FCP 12
+Phase 0 — Inventory         Multi-drive scan + xxh128 hash + SQLite state
+Phase 1 — Pre-processing    BRAW → 720p proxy (DaVinci), ffmpeg NVENC, audio extract
+Phase 2 — Local triage      SigLIP 2 + audio fingerprint (free on RTX 5090)
+Phase 3 — Gemini council    5 voices (Pass A + Murch + Baxter + Pagh + Synthesis)
+                            + conditional Janet Malcolm ethics
+Phase 4 — FCPXML patch      Lumberyard pattern, patches FCP 12's existing FCPXML
 ```
 
 ## Stack
 
-- **Python** 3.11 + asyncio pour vrai parallélisme
-- **Gemini API** via `google-genai==1.66.0` (PAS l'ancien deprecated `google-generativeai`)
-- **Modèles** : `gemini-2.5-flash` (Pass A vidéo safe) + `gemini-3-flash-preview` (Pass B reasoning)
-- **Storage** : SQLite WAL avec idempotency via composite keys
-- **Transcode** : ffmpeg + NVENC (Nvidia GPU 9e gen)
-- **FCPXML** : lxml + xmllint validation + rational timecodes
-- **Hardware recommandé** : PC Windows + RTX 5090 + 96 GB RAM + NVMe interne
+- **Python** 3.11 + asyncio for real parallelism
+- **Gemini API** via `google-genai==1.66.0` (NOT the old deprecated `google-generativeai`)
+- **Models**: `gemini-2.5-flash` (Pass A, video-safe) + `gemini-3-flash-preview` (Pass B reasoning)
+- **Storage**: SQLite WAL with idempotency via composite keys
+- **Transcode**: ffmpeg + NVENC (9th-gen Nvidia GPU)
+- **FCPXML**: lxml + xmllint validation + rational timecodes
+- **Recommended hardware**: Windows PC + RTX 5090 + 96 GB RAM + internal NVMe
 
 ## Installation
 
 ```bash
-git clone https://github.com/12georgiadis/film-indexer.git
+git clone https://github.com/ismael-joffroy-chandoutis/film-indexer.git
 cd film-indexer
 python -m venv .venv
 source .venv/bin/activate   # Linux/Mac
@@ -78,18 +80,18 @@ python -m film_indexer.poc_single_clip \
   --out /path/to/output
 ```
 
-Génère : `<hash>_FINAL.json` (analyse consolidée) + `<hash>.fcpxml` (à importer dans FCP 12).
+Generates: `<hash>_FINAL.json` (consolidated analysis) + `<hash>.fcpxml` (to import into FCP 12).
 
 ### Batch run (recommended)
 
 ```bash
-# Phase 0 : scanner les drives
+# Phase 0: scan the drives
 python -m film_indexer.scan_drives \
   --roots /drive1 /drive2 \
   --since 2026-02-18 \
   --db state.db
 
-# Phase 3 : batch council Gemini (recommended path, stable)
+# Phase 3: batch Gemini council (recommended path, stable)
 python -m film_indexer.batch_run \
   --db state.db \
   --out /path/to/output \
@@ -98,78 +100,78 @@ python -m film_indexer.batch_run \
   --budget-cap 30.0
 ```
 
-> **Note :** `async_pipeline.py` existe mais a un bug Pass B (asyncio.gather silencieux).
-> Utiliser `batch_run.py` pour la production. Le vrai async sera réglé dans une prochaine version.
+> **Note:** `async_pipeline.py` exists but has a Pass B bug (silent `asyncio.gather` failure).
+> Use `batch_run.py` for production. Real async will be fixed in a future version.
 
 ### FCPXML patcher (Lumberyard pattern)
 
 ```bash
-# 1. Dans FCP 12 : File → Export XML → my_library.fcpxml
-# 2. Patch le FCPXML avec les analyses
+# 1. In FCP 12: File → Export XML → my_library.fcpxml
+# 2. Patch the FCPXML with the analyses
 python -m film_indexer.lib.fcpxml_patcher \
   source=my_library.fcpxml \
   state_db=state.db \
   output=my_library_indexed.fcpxml
 
-# 3. Valider
+# 3. Validate
 xmllint --noout my_library_indexed.fcpxml
 
-# 4. Dans FCP 12 : File → Import XML → réimport avec keywords + markers
+# 4. In FCP 12: File → Import XML → re-import with keywords + markers
 ```
 
-## Council multi-rounds
+## Multi-round council
 
-| Round | Voix | Rôle | Coût moyen/clip |
+| Round | Voice | Role | Avg cost/clip |
 |-------|------|------|-----------------|
-| R1 | Pass A factuel (Gemini Flash) | Visual search + transcript + observations | $0.005 |
-| R2 | **Walter Murch** | Verdict éditorial, règle des 6, moment d'or | $0.004 |
-| R3 | **Kirk Baxter** | Réaction vs action, tempo Fincher, blink proxies | $0.004 |
-| R4 | **Niels Pagh Andersen** | Structure narrative, perpétrateur-sujet | $0.004 |
-| R5 | Synthèse FCP | Fiche 3 lignes + keywords + intent | $0.002 |
-| R6 | Janet Malcolm (conditionnel) | Éthique sur matériel sensible | $0.005 |
+| R1 | Factual Pass A (Gemini Flash) | Visual search + transcript + observations | $0.005 |
+| R2 | **Walter Murch** | Editorial verdict, rule of six, golden moment | $0.004 |
+| R3 | **Kirk Baxter** | Reaction vs action, Fincher tempo, blink proxies | $0.004 |
+| R4 | **Niels Pagh Andersen** | Narrative structure, perpetrator-subject | $0.004 |
+| R5 | FCP synthesis | 3-line card + keywords + intent | $0.002 |
+| R6 | Janet Malcolm (conditional) | Ethics on sensitive material | $0.005 |
 
-**Total moyen : ~$0.02 par clip.**
+**Average total: ~$0.02 per clip.**
 
 ## Project tuning
 
-Pour adapter à un autre film, créer un repo privé `<film>-rushes-index` avec :
+To adapt to another film, create a private `<film>-rushes-index` repo with:
 
 ```
 <film>-rushes-index/
-├── film.toml              # config projet (chemins, budget, modèles)
+├── film.toml              # project config (paths, budget, models)
 ├── prompts/
-│   ├── goldberg_context.md    # contexte projet 300 mots
-│   ├── murch_<film>.md        # surcharge Murch
-│   └── baxter_<film>.md       # surcharge Baxter
-├── subjects/                  # taxonomie personnes/personas
-├── themes/                    # thèmes narratifs
-└── risks/                     # règles dures éthiques
+│   ├── goldberg_context.md    # 300-word project context
+│   ├── murch_<film>.md        # Murch override
+│   └── baxter_<film>.md       # Baxter override
+├── subjects/                  # people/personas taxonomy
+├── themes/                    # narrative themes
+└── risks/                     # hard ethical rules
 ```
 
-Voir [goldberg-rushes-index](https://github.com/12georgiadis/goldberg-rushes-index) (privé) pour un exemple complet.
+See [goldberg-rushes-index](https://github.com/ismael-joffroy-chandoutis/goldberg-rushes-index) (private) for a complete example.
 
-## Coûts réels mesurés
+## Measured real-world costs
 
-Sur 16 clips MOV Floride test (durée 1s-2min, proxies H265) :
+On 16 test MOV clips from Florida (duration 1s-2min, H265 proxies):
 
-| Métrique | Valeur |
+| Metric | Value |
 |----------|--------|
-| Total dépensé | $0.637 |
-| Moyen par clip | $0.026 |
-| Pipeline 5 voix (Murch + Baxter + Pagh + Malcolm conditionnel + Synthèse) | ✓ |
-| FCPXML valide xmllint | ✓ |
+| Total spent | $0.637 |
+| Average per clip | $0.026 |
+| 5-voice pipeline (Murch + Baxter + Pagh + conditional Malcolm + Synthesis) | ✓ |
+| FCPXML valid via xmllint | ✓ |
 
-Projection **1024 clips Goldberg** : ~**$25-50 total**, ~**30 min wall clock** en batch async workers=6.
+Projection for **1024 Goldberg clips**: ~**$25-50 total**, ~**30 min wall clock** in batch async workers=6.
 
 ## License
 
-MIT — Méthode publique, tes matériaux restent privés.
+[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — Public method, your materials stay private.
 
 ## Credits
 
-- Conçu pour **The Goldberg Variations** (documentaire Ismaël Joffroy Chandoutis, Films Grand Huit)
-- Inspirations méthode : Walter Murch (*In the Blink of an Eye*), Kirk Baxter (interviews Fincher/Mindhunter), Niels Pagh Andersen (*The Act of Killing* editor), Janet Malcolm (*The Journalist and the Murderer*)
-- Pattern FCPXML patching : Lumberyard (Philip Hodgetts / Intelligent Assistance)
-- Hardware de développement : Nomad PC (AMD Ryzen 9 9900X + RTX 5090 + 96 GB)
+- Designed for **The Goldberg Variations** (documentary by Ismaël Joffroy Chandoutis, Films Grand Huit)
+- Method inspirations: Walter Murch (*In the Blink of an Eye*), Kirk Baxter (Fincher/Mindhunter interviews), Niels Pagh Andersen (*The Act of Killing* editor), Janet Malcolm (*The Journalist and the Murderer*)
+- FCPXML patching pattern: Lumberyard (Philip Hodgetts / Intelligent Assistance)
+- Development hardware: Nomad PC (AMD Ryzen 9 9900X + RTX 5090 + 96 GB)
 
-Par [Ismaël Joffroy Chandoutis](https://ismaeljoffroychandoutis.com).
+By [Ismaël Joffroy Chandoutis](https://ismaeljoffroychandoutis.com).
