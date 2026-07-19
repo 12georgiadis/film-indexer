@@ -2,15 +2,15 @@
 
 # film-indexer
 
-> **Conseil éditorial IA multi-perspectives pour rushes documentaire**: Walter Murch + Kirk Baxter + Niels Pagh Andersen via Gemini, avec injection de mots-clés FCPXML pour Final Cut Pro 12.
+> **Conseil éditorial IA multi-perspectives pour rushes documentaire** : Walter Murch + Kirk Baxter + Niels Pagh Andersen via Gemini, avec injection de mots-clés FCPXML pour Final Cut Pro 12.
 
 Pipeline d'indexation sémantique de rushes documentaire qui fait passer chaque clip par plusieurs voix éditoriales LLM (Murch, Baxter, Pagh Andersen) et injecte les verdicts dans Final Cut Pro 12 via FCPXML keyword ranges + markers + custom metadata.
 
 <img src="monde.jpg" alt="film-indexer" width="100%">
 
-**Status:** Beta / PoC validé bout-en-bout.
+**Statut :** Beta / PoC validé bout-en-bout.
 
-> **2026 update, complément SpliceKit**: film-indexer génère des FCPXML keyword ranges que tu importes dans FCP manuellement. Pour une injection temps réel sans l'aller-retour XML, associe-le à [SpliceKit MCP](https://github.com/elliotttate/SpliceKit), un MCP Claude Code qui contrôle FCP directement in-process. film-indexer gère l'indexation et l'analyse ; SpliceKit gère les écritures live sur la timeline.
+> **2026 update, complément SpliceKit** : film-indexer génère des FCPXML keyword ranges que tu importes dans FCP manuellement. Pour une injection temps réel sans l'aller-retour XML, associe-le à [SpliceKit MCP](https://github.com/elliotttate/SpliceKit), un MCP Claude Code qui contrôle FCP directement in-process. film-indexer gère l'indexation et l'analyse ; SpliceKit gère les écritures live sur la timeline.
 
 ---
 
@@ -18,7 +18,7 @@ Pipeline d'indexation sémantique de rushes documentaire qui fait passer chaque 
 
 Aucun outil sur le marché ne combine :
 - Analyse multi-LLM avec perspectives éditoriales humaines (Murch + Baxter + Pagh Andersen)
-- FCPXML 1.13 keyword ranges + markers timecodés injection
+- Injection FCPXML 1.13 : keyword ranges + markers timecodés
 - Batch scaling >1000 clips pour documentaire long format
 - Tuning projet-spécifique avec garde-fous éthiques
 - Hybride local (GPU) + cloud (Gemini) pour maîtriser les coûts
@@ -43,7 +43,7 @@ Les alternatives existantes :
 Phase 0 · Inventaire        Scan multi-drives + hash xxh128 + SQLite state
 Phase 1 · Pre-processing    BRAW → proxy 720p (DaVinci), ffmpeg NVENC, audio extract
 Phase 2 · Triage local      SigLIP 2 + audio fingerprint (gratuit RTX 5090)
-Phase 3 · Council Gemini    5 voix (Pass A + Murch + Baxter + Pagh + Synthese)
+Phase 3 · Council Gemini    5 voix (Pass A + Murch + Baxter + Pagh + Synthèse)
                             + Janet Malcolm ethics conditionnel
 Phase 4 · FCPXML patch      Lumberyard pattern, patch FCPXML existant de FCP 12
 ```
@@ -165,11 +165,11 @@ Sur 16 clips MOV Floride test (durée 1s-2min, proxies H265) :
 
 Projection **1024 clips Goldberg** : ~**$25-50 total**, ~**30 min wall clock** en batch async workers=6.
 
-## License
+## Licence
 
 [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0). Méthode publique pour usage non commercial, tes matériaux restent privés.
 
-## Credits
+## Crédits
 
 - Conçu pour **The Goldberg Variations** (documentaire Ismaël Joffroy Chandoutis, Films Grand Huit)
 - Inspirations méthode : Walter Murch (*In the Blink of an Eye*), Kirk Baxter (interviews Fincher/Mindhunter), Niels Pagh Andersen (*The Act of Killing* editor), Janet Malcolm (*The Journalist and the Murderer*)
