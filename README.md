@@ -6,6 +6,8 @@
 
 A semantic indexing pipeline for documentary rushes that runs every clip through several LLM editorial voices (Murch, Baxter, Pagh Andersen) and injects the verdicts into Final Cut Pro 12 via FCPXML keyword ranges + markers + custom metadata.
 
+<img src="monde.jpg" alt="film-indexer" width="100%">
+
 **Status:** Beta / end-to-end validated PoC.
 
 > **2026 update — SpliceKit complement**: film-indexer generates FCPXML keyword ranges that you import into FCP manually. For real-time injection without the XML roundtrip, pair it with [SpliceKit MCP](https://github.com/elliotttate/SpliceKit) — a Claude Code MCP that controls FCP directly in-process. film-indexer handles the indexing and analysis; SpliceKit handles the live timeline writes.
