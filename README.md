@@ -2,7 +2,7 @@
 
 # film-indexer
 
-> **Multi-perspective AI editorial council for documentary rushes** — Walter Murch + Kirk Baxter + Niels Pagh Andersen via Gemini, with FCPXML keyword injection for Final Cut Pro 12.
+> **Multi-perspective AI editorial council for documentary rushes**: Walter Murch + Kirk Baxter + Niels Pagh Andersen via Gemini, with FCPXML keyword injection for Final Cut Pro 12.
 
 A semantic indexing pipeline for documentary rushes that runs every clip through several LLM editorial voices (Murch, Baxter, Pagh Andersen) and injects the verdicts into Final Cut Pro 12 via FCPXML keyword ranges + markers + custom metadata.
 
@@ -10,7 +10,7 @@ A semantic indexing pipeline for documentary rushes that runs every clip through
 
 **Status:** Beta / end-to-end validated PoC.
 
-> **2026 update — SpliceKit complement**: film-indexer generates FCPXML keyword ranges that you import into FCP manually. For real-time injection without the XML roundtrip, pair it with [SpliceKit MCP](https://github.com/elliotttate/SpliceKit) — a Claude Code MCP that controls FCP directly in-process. film-indexer handles the indexing and analysis; SpliceKit handles the live timeline writes.
+> **2026 update, SpliceKit complement**: film-indexer generates FCPXML keyword ranges that you import into FCP manually. For real-time injection without the XML roundtrip, pair it with [SpliceKit MCP](https://github.com/elliotttate/SpliceKit), a Claude Code MCP that controls FCP directly in-process. film-indexer handles the indexing and analysis; SpliceKit handles the live timeline writes.
 
 ---
 
@@ -40,12 +40,12 @@ Existing alternatives:
 ## Architecture
 
 ```
-Phase 0 — Inventory         Multi-drive scan + xxh128 hash + SQLite state
-Phase 1 — Pre-processing    BRAW → 720p proxy (DaVinci), ffmpeg NVENC, audio extract
-Phase 2 — Local triage      SigLIP 2 + audio fingerprint (free on RTX 5090)
-Phase 3 — Gemini council    5 voices (Pass A + Murch + Baxter + Pagh + Synthesis)
+Phase 0 · Inventory         Multi-drive scan + xxh128 hash + SQLite state
+Phase 1 · Pre-processing    BRAW → 720p proxy (DaVinci), ffmpeg NVENC, audio extract
+Phase 2 · Local triage      SigLIP 2 + audio fingerprint (free on RTX 5090)
+Phase 3 · Gemini council    5 voices (Pass A + Murch + Baxter + Pagh + Synthesis)
                             + conditional Janet Malcolm ethics
-Phase 4 — FCPXML patch      Lumberyard pattern, patches FCP 12's existing FCPXML
+Phase 4 · FCPXML patch      Lumberyard pattern, patches FCP 12's existing FCPXML
 ```
 
 ## Stack
@@ -160,14 +160,14 @@ On 16 test MOV clips from Florida (duration 1s-2min, H265 proxies):
 |----------|--------|
 | Total spent | $0.637 |
 | Average per clip | $0.026 |
-| 5-voice pipeline (Murch + Baxter + Pagh + conditional Malcolm + Synthesis) | ✓ |
-| FCPXML valid via xmllint | ✓ |
+| 5-voice pipeline (Murch + Baxter + Pagh + conditional Malcolm + Synthesis) | Validated |
+| FCPXML valid via xmllint | Validated |
 
 Projection for **1024 Goldberg clips**: ~**$25-50 total**, ~**30 min wall clock** in batch async workers=6.
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — Public method, your materials stay private.
+[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0). Public method, your materials stay private.
 
 ## Credits
 
